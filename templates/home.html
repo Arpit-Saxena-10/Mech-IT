@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
+</head>
+<body>
+    <div class="container">
+        <h1 align="center">Course Allotment</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <label>Select Subfield</label>
+                <select name="subfield" data-live-search="true" id="subfield" class="form-control" title="Select Subfield">
+                    {% for field in fields %}
+                    <option value="{{field}}">{{field}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label>Select Course</label>
+                <select name="course" data-live-search="true" id="course" class="form-control" title="Select Course">
+<!--                    {% for course in courses %}-->
+<!--                    <option value="{{course.id}}">{{course.name}}</option>-->
+<!--                    {% endfor %}-->
+                </select>
+            </div>
+<!--            <div class="col-md-6">-->
+<!--                <label>Select Faculty</label>-->
+<!--                <select name="faculty" data-live-search="true" id="faculty" class="form-control" title="Select Faculty"> </select>-->
+<!--            </div>-->
+
+<!--            <div class="col-md-6">-->
+<!--                <label>Specify Section</label>-->
+<!--                <select name="section" data-live-search="true" id="section" class="form-control" title="Select Section">-->
+<!--                    {% for section in sections %}-->
+<!--                    <option value="{{section}}">{{section}}</option>-->
+<!--                    {% endfor %}-->
+<!--                </select>-->
+<!--            </div>-->
+        </div>
+
+        <div>
+            <br>
+            <p id="alloted_sections"> <label > </label></p>
+        </div>
+
+        <div>
+            <form id="add_sections" style="display: none">
+              <label for="quantity">Select number of sections to be added:</label>
+              <input type="number" id="quantity" name="num_sections" min="1" max="5">
+              <button type="submit" class="btn btn-default">Add</button>
+            </form>
+        </div>
+
+        <div class="row" id="faculty_section">
+
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+
+
+    <script>
+        $(document).ready(function () {
+            $("#subfield").selectpicker();
+            $("#course").selectpicker();
+            //$("#faculty").selectpicker();
+            $("#section").selectpicker();
+
+            var sections;
+
+            function get_course(subfield) {
+                console.log(subfield)
+                $.ajax({
+                    url: "/course",
+                    method: "POST",
+                    data: {'subfield': subfield},
+                    //dataType: "json",
+                    success: function (courses) { //alert(category_id)
+
+                        console.log(courses)
+                        var html = "";
+                        for (var count = 0; count < courses.length; count++) {
+                            html += '<option value="' + courses[count].id + '">' + courses[count].name + "</option>";
+                        }
+                            $("#course").html(html);
+                            $("#course").selectpicker("refresh");
+
+                        //if (type == "carData") {
+                        //    $("#car_brand").html(html);
+                        //    $("#car_brand").selectpicker("refresh");
+                        //} else {
+                        //    $("#car_models").html(html);
+                        //    $("#car_models").selectpicker("refresh");
+                        //}
+                    },
+                });
+            }
+
+            function get_alloted_section(course_id) {
+                console.log(course_id);
+                $.ajax({
+                    url: "/alloted_sections",
+                    method: "POST",
+                    data: {'course_id': course_id},
+                    //dataType: "json",
+                    success: function (course_sections) { //alert(category_id)
+                        console.log(course_sections)
+                        var html = "";
+                        for (var i = 0; i < course_sections.length; i++) {
+                            //html += '<option value="' + courses[count].id + '">' + courses[count].name + "</option>";
+                            html += course_sections[i].section + ' alloted to Professor ' + course_sections[i].prof +' <br>';
+                        }
+                        $("#alloted_sections").html(html);
+                        $("#add_sections").show();
+                    },
+                });
+            }
+
+        $(document).on("change", "#subfield", function () {
+                var subfield = $("#subfield").val();
+                get_course(subfield);
+
+                // Add Code to reset alloted_sections and add_sections
+                $("#alloted_sections").html("");
+                $("#add_sections").hide();
+            });
+
+        $(document).on("change", "#course", function () {
+                var course_id = $("#course").val();
+                get_alloted_section(course_id);
+
+                // Add Code to reset faculty dropdown
+                $("#faculty_section").html("");
+            });
+        });
+
+        $(document).on("click", "#btnSubmit", function () {
+
+            section_faculty_list = [];
+            for (var i = 0; i < sections.length; i++) {
+                var fac_id = $("#faculty"+sections[i]).val();
+                console.log('prof '+fac_id +' for section '+sections[i])
+                section_faculty_list.push({'section':sections[i],'faculty_id':fac_id})
+            }
+            var course_id = $("#course").val();
+            console.log(section_faculty_list)
+            $.ajax({
+                    url: "/allot_section_fac",
+                    method: "POST",
+                    data: {'section_faculty_list': JSON.stringify(section_faculty_list),'course_id':course_id},
+                    //dataType: "json",
+                    success: function (course_sections) { //alert(category_id)
+                        console.log('success')
+                    },
+                });
+
+
+
+        });
+
+        $("#add_sections").on('submit', function (e) {
+           //ajax call here
+            e.preventDefault();
+            var subfield = $("#subfield").val();
+            var course_id = $("#course").val();
+            var num_sections = $("#quantity").val();
+            console.log('check '+subfield + ' '+course_id+' '+num_sections)
+            $.ajax({
+                    url: "/get_fac",
+                    method: "POST",
+                    data: {'course_id': course_id,'subfield':subfield,'num_sections':num_sections},
+                    //dataType: "json",
+                    success: function (resp) { //alert(category_id)
+                        console.log(resp)
+                        sections = resp.sections;
+                        var html = '<br>'
+                        for (var i = 0; i < resp.sections.length; i++) {
+                            html += '<div class="col-md-3"> ';
+
+                                html += '<select name="faculty'+ resp.sections[i] +' " data-live-search="true" id="faculty'+resp.sections[i]+ '" class="form-control" title="Faculty for '+ resp.sections[i] +'"> ';
+                                for (var j = 0; j < resp.profs.length; j++) {
+                                    html += '<option value="' + resp.profs[j].id + '">' + resp.profs[j].name + "</option>";
+                                }
+                                html += '</select>';
+                            html += ' </div>'
+                        }
+                        html += '<button id = "btnSubmit" type="button" class="btn btn-dark">Submit</button>';
+                        $("#faculty_section").html(html);
+                        $("#add_sections").show();
+                        for (var i = 0; i < resp.sections.length; i++) {
+                            $("#faculty"+resp.sections[i]).selectpicker();
+                        }
+                    },
+                });
+           //stop form submission
+
+        });
+    </script>
+
+</body>
+</html>
